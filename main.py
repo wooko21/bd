@@ -1,28 +1,39 @@
 import urllib as url
 import click
 
+from flask import Flask, render_template, redirect
 from flask import Flask, render_template
+from flask_bootstrap import Bootstrap
+
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'siema'
+bootstrap = Bootstrap(app)
 
-# @app.cli.command("show-movies")
-# @click.argument("abc")
-# def show_movies(abc):
-#     print("hahaha!" + abc)
+@app.cli.command("show-movies")
 
+def print_movies():
+    from database import get_all_movies
+    print (get_all_movies())
+
+@app.route('/dummy')
+def temp():
+    from forms import AddReservationForm
+    from forms import AddCityForm
+    form = AddCityForm()
+    return render_template('reservation_default.html', form=form, edit_type='miasto')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html')
 
-@app.cli.command("show-movies")
-#@click.argument("abc")
 @app.route('/get_movies')
 def get_movies():
     """
     :return: fun returns a dict of all movies within movies_table
     """
     from database import get_all_movies
-    print (get_all_movies())
+    print(get_all_movies())
+    return get_all_movies()
 
 
 @app.route('/genres')
@@ -68,27 +79,63 @@ def add_movie(movie_name: str, genre: str, length: int):
     from database import add_movie
     return add_movie()
 
-@app.route('/create_reservation')
-# def create_reservation():
-#     from forms import AddReservationForm
-#     from database import get_all_movies
-#
-#     form = AddReservationForm()
-#     form.movie_name.choices = get_all_movies()
-#     form.showings.choices = get
-#     if form.validate_on_submit():
-#         if add(form.name.data, form.date.data, form.price.data, form.location.data, form.artist.data):
-#             flash(f'Poprawnie dodano wydarzenie {form.name.data}')
-#         else:
-#             flash(f'Nie udało dodać się wydarzenia {form.name.data}')
-#     return render_template('add_template.html', form=form)
+@app.route('/create_reservation/', methods=['GET', 'POST'])
+def choose_movie():
+    from forms import SelectMovie
+    from database import get_titles
 
+    form = SelectMovie()
+    _movies = get_titles()
+    print(_movies)
+    form.movie_name.choices = _movies
+    if form.validate_on_submit():
+        return redirect(f'/create_reservation/{form.movie_name.data}')
+    return render_template('reservation_default.html', form=form)
+
+
+@app.route('/create_reservation/<movie_name>', methods=['GET', 'POST'])
+def choose_showing(movie_name):
+    from forms import SelectShowing
+    from database import get_showing_per_movie
+
+    form = SelectShowing()
+    _show = get_showing_per_movie(movie_name)
+    print(_show)
+    form.showing_date_auditorium.choices = list(_show.keys())
+    if form.validate_on_submit():
+        return redirect(f'/create_reservation/show/{_show[form.showing_date_auditorium.data]}')
+    return render_template('reservation_default.html', form=form)
+
+
+@app.route('/create_reservation/show/<showing>', methods=['GET', 'POST'])
+def choose_seating(showing):
+    from forms import SelectSeat
+    from database import get_free_seats_per_showing, usiadz_na_m
+
+    form = SelectSeat()
+    _seat = get_free_seats_per_showing(showing)
+    print(_seat)
+    form.seat.choices = _seat
+    if form.validate_on_submit():
+        usiadz_na_m(seat_id=(int(form.seat.data)), showing_id=showing)
+        return redirect(f'/create_reservation/success/{_seat[form.seat.data]}')
+    return render_template('reservation_default.html', form=form)
+
+
+@app.route('/create_reservation/success/<seat_id>')
+def ticket_booked(show_id: int, seat_id: int):
+    return render_template('success.html', seat=seat_id, show=show_id)
 
 @app.route('/get_shows_by_movie/<movie_name>')
 def get_shows_by_movie(movie_name: str) -> dict:
     from database import get_shows_by_movie as get_shows
     return get_shows(movie_name)
 
+
+@app.route('/get_reservations_per_showing/<showing_id>')
+def get_reservations_per_showing(showing_id: str):
+    from database import get_reservations_per_showing 
+    return get_reservations_per_showing(showing_id)
 
 if __name__ == '__main__':
     app.run()

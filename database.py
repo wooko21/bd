@@ -9,8 +9,8 @@ PAG_SIZE = 6
 
 def connect():
     return mysql.connector.connect(
-        host='127.0.0.1',
         user='root',
+        host='127.0.0.1',
         password='m4a1hpxw',
         database='mydb'
     )
@@ -26,6 +26,7 @@ def get_all_movies() -> dict:
     cursor.close()
     db.close()
     return json.dumps(res)
+
 
 # TODO: works
 def get_movies_by_title(title: str) -> dict:
@@ -149,12 +150,35 @@ def get_shows_by_movie(movie_name: str = None) -> dict:
         return False
 
 
+def get_reservations_per_showing(show_id: int) -> json:
+    db = connect()
+    cursor = db.cursor()
+
+    sql = 'SELECT seat_id FROM reservations WHERE showings_idshowing = %s'
+    val = (show_id, )
+    cursor.execute(sql, val)
+    i = 0
+    res = []
+    for row in cursor.fetchall():
+        res[i] = {'idreservations': row[0], 'showings_idshowing': row[1], 'seat_id': row[2]}
+    return json.dumps(res)
 
 
+def get_free_seats_per_showing(show_id: int) -> List[str]:
+    db = connect()
+    cursor = db.cursor()
+    sql = """SELECT s.seat_id FROM seats s 
+    WHERE s.auditoriums_idauditorium = (SELECT auditoriums_idauditorium FROM showings WHERE idshowing = %s)
+     AND seat_id != ALL(SELECT r.seat_id FROM reservations r WHERE r.showings_idshowing =  %s)"""
+    val = (show_id, show_id)
+    cursor.execute(sql, val)
+    return [x[0] for x in cursor.fetchall()]
 
-def get_reservations_per_showing(show_id: int) -> List[str]:
-    pass
 
+def book_a_seat(show_id: int, seat_id: int) -> bool:
+    db = connect()
+    cursor = db.cursor()
+    sql = """"""
 
 def get_showings_per_auditiorium(aud_id: int) -> List[str]:
     pass
@@ -162,3 +186,37 @@ def get_showings_per_auditiorium(aud_id: int) -> List[str]:
 
 def add_ticket(show_id: int, seat_id: int, name: str) -> bool:
     pass
+
+
+def get_showing_per_movie(title: str):
+    db = connect()
+    cursor = db.cursor()
+    sql="""SELECT s.time, s.auditoriums_idauditorium, s.idshowing FROM showings s WHERE s.movies_idmovies = (SELECT idmovies FROM movies WHERE movie_name = %s)"""
+    val = (title,)
+    cursor.execute(sql, val)
+    res = {f'{x[0]}: {x[1]}': x[2] for x in cursor.fetchall()}
+    return res
+
+def usiadz_na_m(seat_id: int, showing_id: int):
+    db = connect()
+    cursor = db.cursor()
+    sql = """INSERT INTO reservations (showings_idshowing, seat_id) VALUES (%s, %s)"""
+    val = (showing_id, seat_id)
+    cursor.execute(sql, val)
+
+
+def get_titles() -> List[str]:
+    db = connect()
+    cursor = db.cursor()
+    sql = """SELECT movie_name FROM movies"""
+    cursor.execute(sql)
+    return [x[0] for x in cursor.fetchall()]
+
+
+def get_movie_id(title: str) -> int:
+    db = connect()
+    cursor = db.cursor(buffered=True)
+    sql = """SELECT idmovies FROM movies WHERE title = %s"""
+    val = (title,)
+    cursor.execute(sql, title)
+    return cursor.fetchone()[0]

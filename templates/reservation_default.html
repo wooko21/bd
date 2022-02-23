@@ -1,0 +1,16 @@
+{% import "bootstrap/wtf.html" as wtf %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>kino {{edit_type}}</title>
+</head>
+<body>
+    {% block page_content %}
+        <div style='display:flex; align-items:center; justify-content: center; padding: 20px; position:relative' class="form_container">
+            {{ wtf.quick_form(form) }}
+        </div>
+    {% endblock %}
+</body>
+</html>
